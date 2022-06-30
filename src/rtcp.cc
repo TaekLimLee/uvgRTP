@@ -29,7 +29,7 @@ const uint32_t RTP_SEQ_MOD    = 1 << 16;
 const uint32_t MIN_SEQUENTIAL = 2;
 const uint32_t MAX_DROPOUT    = 3000;
 const uint32_t MAX_MISORDER   = 100;
-const uint32_t MIN_TIMEOUT_MS    = 5000;
+const uint32_t MIN_TIMEOUT_MS    =  500;//5000;        // change dlsr
 
 constexpr int ESTIMATED_MAX_RECEPTION_TIME_MS = 10;
 
@@ -181,7 +181,7 @@ void uvgrtp::rtcp::rtcp_runner(uvgrtp::rtcp* rtcp)
     while (rtcp->is_active())
     {
         auto time_since_start = uvgrtp::clock::hrc::diff_now(start);
-        long int diff_ms = i*interval - time_since_start;
+        long int diff_ms = i*interval - time_since_start;           // diff가 음수여야 리포트를 만들고 양수면 listen
 
         if (diff_ms <= 0)
         {
@@ -1229,8 +1229,11 @@ rtp_error_t uvgrtp::rtcp::handle_sender_report_packet(uint8_t* packet, size_t si
 
     participants_[frame->ssrc]->stats.sr_ts = uvgrtp::clock::hrc::now();
     participants_[frame->ssrc]->stats.lsr =
-        ((frame->sender_info.ntp_msw >> 16) & 0xffff) |
-        ((frame->sender_info.ntp_lsw & 0xffff0000) >> 16);
+        ((frame->sender_info.ntp_msw & 0xffff) << 16) |
+        (frame->sender_info.ntp_lsw >> 16);
+        // error?
+        // ((frame->sender_info.ntp_msw >> 16) & 0xffff) |
+        // ((frame->sender_info.ntp_lsw & 0xffff0000) >> 16);
 
     read_reports(packet, size, frame->header.count, true, frame->report_blocks);
 
@@ -1390,7 +1393,7 @@ rtp_error_t uvgrtp::rtcp::generate_report()
 
     if (our_role_ == SENDER && our_stats.sent_rtp_packet)
     {
-        LOG_DEBUG("Generating RTCP Sender report");
+        // LOG_DEBUG("Generating RTCP Sender report");
         // sender reports have sender information in addition compared to receiver reports
         frame_size += SENDER_INFO_SIZE;
         construct_rtcp_header(frame_size, frame, reports, uvgrtp::frame::RTCP_FT_SR, true);
@@ -1416,7 +1419,7 @@ rtp_error_t uvgrtp::rtcp::generate_report()
         our_stats.sent_rtp_packet = false;
 
     } else { // RECEIVER
-        LOG_DEBUG("Generating RTCP Receiver report");
+        // LOG_DEBUG("Generating RTCP Receiver report");
         construct_rtcp_header(frame_size, frame, reports, uvgrtp::frame::RTCP_FT_RR, true);
     }
 
